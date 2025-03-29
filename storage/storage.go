@@ -4,12 +4,14 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"github.com/mergestat/timediff"
 	"io"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
 	"text/tabwriter"
+	"time"
 )
 
 const (
@@ -18,6 +20,8 @@ const (
 )
 
 const CSVStorageFilename = "storage.csv"
+
+const TimeLayout = "2006-01-02 15:04:05.999999 -0700"
 
 func GetOrCreateCSVStorage() (*os.File, error) {
 	var f *os.File
@@ -222,10 +226,41 @@ func GetRowsMapped(f io.Reader) ([]map[string]string, error) {
 	return rowsMapped, nil
 }
 
+func replaceWithHumanReadableTime(rows [][]string) ([][]string, error) {
+	if len(rows) == 0 {
+		return nil, errors.New("malformed data: header not found")
+	}
+
+	header := rows[0]
+
+	var newRows [][]string
+	newRows = append(newRows, header)
+
+	for _, row := range rows[1:] {
+		createdTime, err := getCreatedTime(row, header)
+		if err != nil {
+			return nil, err
+		}
+
+		for i, h := range header {
+			if h == "Created" {
+				row[i] = timediff.TimeDiff(createdTime)
+			}
+		}
+		newRows = append(newRows, row)
+	}
+
+	return newRows, nil
+}
+
 func GetRowsTabular(f io.Reader, w io.Writer) error {
 	writer := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
 
 	rows, err := GetRows(f)
+	if err != nil {
+		return err
+	}
+	rows, err = replaceWithHumanReadableTime(rows)
 	if err != nil {
 		return err
 	}
@@ -290,6 +325,26 @@ func getRowID(row []string, header []string) (int, error) {
 	}
 
 	return rowID, nil
+}
+
+func getCreatedTime(row []string, header []string) (time.Time, error) {
+	var createdTime time.Time
+	if !slices.Contains(header, "Created") {
+		return createdTime, errors.New("created header not found")
+	}
+
+	rowMapped := make(map[string]string)
+	for i, h := range header {
+		rowMapped[h] = row[i]
+	}
+
+	createdStr := rowMapped["Created"]
+	createdTime, err := time.Parse(TimeLayout, createdStr)
+	if err != nil {
+		return createdTime, err
+	}
+
+	return createdTime, nil
 }
 
 func markRecordCompleted(row, header []string) ([]string, error) {

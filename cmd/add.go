@@ -29,7 +29,8 @@ var addCmd = &cobra.Command{
 			return
 		}
 
-		err = storage.AddNewCSVRecord(f, []string{strconv.Itoa(nextID), todo, time.Now().UTC().String(), storage.IsDoneNo})
+		nowStr := time.Now().Format(storage.TimeLayout)
+		err = storage.AddNewCSVRecord(f, []string{strconv.Itoa(nextID), todo, nowStr, storage.IsDoneNo})
 		if err != nil {
 			fmt.Printf("couldn't add new record: %v", err)
 			return
