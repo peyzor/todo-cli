@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"bytes"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -54,45 +53,66 @@ func AddNewCSVRecord(f io.Writer, record []string) error {
 	return nil
 }
 
-func GetNextID(f io.Reader) (int, error) {
-	data, err := io.ReadAll(f)
-	if err != nil {
-		return 0, err
-	}
+func GetRows(f io.Reader) ([][]string, error) {
+	reader := csv.NewReader(f)
 
-	reader := csv.NewReader(bytes.NewReader(data))
-	header, err := reader.Read()
-	if err != nil {
-		return 0, err
-	}
-
-	var rows []map[string]string
+	var rows [][]string
 	for {
 		record, err := reader.Read()
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return 0, err
+			return nil, err
 		}
 
-		row := make(map[string]string)
-		for i, h := range header {
-			row[h] = record[i]
-		}
-
-		rows = append(rows, row)
+		rows = append(rows, record)
 	}
 
+	return rows, nil
+}
+
+func GetRowsMapped(f io.Reader) ([]map[string]string, error) {
+	rows, err := GetRows(f)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(rows) == 0 {
+		return nil, errors.New("malformed data: header not found")
+	}
+
+	header := rows[0]
+
+	var rowsMapped []map[string]string
+	for _, row := range rows[1:] {
+		rowMapped := make(map[string]string)
+		for i, h := range header {
+			rowMapped[h] = row[i]
+		}
+
+		rowsMapped = append(rowsMapped, rowMapped)
+	}
+
+	return rowsMapped, nil
+}
+
+func GetNextID(f io.Reader) (int, error) {
 	maxID := 0
+
+	rows, err := GetRowsMapped(f)
+	if err != nil {
+		return maxID, err
+	}
+
 	for _, row := range rows {
 		IDStr, ok := row["ID"]
 		if !ok {
-			return 0, errors.New("malformed data: ID value does not exist")
+			return maxID, errors.New("malformed data: ID value does not exist")
 		}
 
 		ID, err := strconv.Atoi(IDStr)
 		if err != nil {
-			return 0, fmt.Errorf("malformed data: could not convert %s to integer", IDStr)
+			return maxID, fmt.Errorf("malformed data: could not convert %s to integer", IDStr)
 		}
 
 		if ID > maxID {
