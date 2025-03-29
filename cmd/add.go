@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/peyzor/todo-cli/storage"
 	"github.com/spf13/cobra"
+	"strconv"
 	"time"
 )
 
@@ -20,7 +21,13 @@ var addCmd = &cobra.Command{
 		defer f.Close()
 
 		todo := args[0]
-		err = storage.AddNewCSVRecord(f, []string{"1", todo, time.Now().UTC().String()})
+		nextID, err := storage.GetNextID(f)
+		if err != nil {
+			fmt.Printf("couldn't get next id: %v", err)
+			return
+		}
+
+		err = storage.AddNewCSVRecord(f, []string{strconv.Itoa(nextID), todo, time.Now().UTC().String(), storage.IsDoneNo})
 		if err != nil {
 			fmt.Printf("couldn't add new record: %v", err)
 			return
