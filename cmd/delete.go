@@ -1,26 +1,37 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
 	"fmt"
-
+	"github.com/peyzor/todo-cli/storage"
 	"github.com/spf13/cobra"
+	"strconv"
 )
 
 // deleteCmd represents the delete command
 var deleteCmd = &cobra.Command{
-	Use:   "delete",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:   "delete <ID>",
+	Short: "delete a todo",
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("delete called")
+		f, err := storage.GetOrCreateCSVStorage()
+		if err != nil {
+			fmt.Printf("couldn't get storage: %v", err)
+			return
+		}
+		defer f.Close()
+
+		IDStr := args[0]
+		ID, err := strconv.Atoi(IDStr)
+		if err != nil {
+			fmt.Printf("invalid ID: %v", err)
+			return
+		}
+
+		err = storage.DeleteCSVRecord(f, ID)
+		if err != nil {
+			fmt.Printf("couldn't delete record: %v", err)
+			return
+		}
 	},
 }
 

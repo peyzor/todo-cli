@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 )
 
@@ -51,6 +52,84 @@ func AddNewCSVRecord(f io.Writer, record []string) error {
 	}
 
 	return nil
+}
+
+func DeleteCSVRecord(f io.ReadWriter, ID int) error {
+	rows, err := GetRows(f)
+	if err != nil {
+		return err
+	}
+
+	if len(rows) == 0 {
+		return errors.New("malformed data: header not found")
+	}
+
+	header := rows[0]
+
+	var newRows [][]string
+	for _, row := range rows[1:] {
+		rowID, err := getRowID(row, header)
+		if err != nil {
+			return err
+		}
+
+		if ID == rowID {
+			continue
+		}
+
+		newRows = append(newRows, row)
+	}
+
+	tmpFile, err := os.CreateTemp("", "temp_csv")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	writer := csv.NewWriter(tmpFile)
+	err = writer.Write(header)
+	if err != nil {
+		return err
+	}
+	for _, newRow := range newRows {
+		err = writer.Write(newRow)
+		if err != nil {
+			return err
+		}
+	}
+
+	writer.Flush()
+	if err = writer.Error(); err != nil {
+		return err
+	}
+
+	err = os.Rename(tmpFile.Name(), "storage.csv")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func getRowID(row []string, header []string) (int, error) {
+	var rowID int
+	if !slices.Contains(header, "ID") {
+		return rowID, errors.New("ID header not found")
+	}
+
+	rowMapped := make(map[string]string)
+	for i, h := range header {
+		rowMapped[h] = row[i]
+	}
+
+	rowIDStr := rowMapped["ID"]
+	rowID, err := strconv.Atoi(rowIDStr)
+	if err != nil {
+		return rowID, fmt.Errorf("malformed data: %v", err)
+	}
+
+	return rowID, nil
 }
 
 func GetRows(f io.Reader) ([][]string, error) {
