@@ -8,6 +8,8 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
+	"text/tabwriter"
 )
 
 const (
@@ -114,26 +116,6 @@ func DeleteCSVRecord(f io.ReadWriter, ID int) error {
 	return nil
 }
 
-func getRowID(row []string, header []string) (int, error) {
-	var rowID int
-	if !slices.Contains(header, "ID") {
-		return rowID, errors.New("ID header not found")
-	}
-
-	rowMapped := make(map[string]string)
-	for i, h := range header {
-		rowMapped[h] = row[i]
-	}
-
-	rowIDStr := rowMapped["ID"]
-	rowID, err := strconv.Atoi(rowIDStr)
-	if err != nil {
-		return rowID, fmt.Errorf("malformed data: %v", err)
-	}
-
-	return rowID, nil
-}
-
 func GetRows(f io.Reader) ([][]string, error) {
 	reader := csv.NewReader(f)
 
@@ -177,6 +159,29 @@ func GetRowsMapped(f io.Reader) ([]map[string]string, error) {
 	return rowsMapped, nil
 }
 
+func GetRowsTabular(f io.Reader, w io.Writer) error {
+	writer := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+
+	rows, err := GetRows(f)
+	if err != nil {
+		return err
+	}
+
+	for _, row := range rows {
+		_, err = fmt.Fprintln(writer, strings.Join(row, "\t"))
+		if err != nil {
+			return err
+		}
+	}
+
+	err = writer.Flush()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func GetNextID(f io.Reader) (int, error) {
 	maxID := 0
 
@@ -202,4 +207,24 @@ func GetNextID(f io.Reader) (int, error) {
 	}
 
 	return maxID + 1, nil
+}
+
+func getRowID(row []string, header []string) (int, error) {
+	var rowID int
+	if !slices.Contains(header, "ID") {
+		return rowID, errors.New("ID header not found")
+	}
+
+	rowMapped := make(map[string]string)
+	for i, h := range header {
+		rowMapped[h] = row[i]
+	}
+
+	rowIDStr := rowMapped["ID"]
+	rowID, err := strconv.Atoi(rowIDStr)
+	if err != nil {
+		return rowID, fmt.Errorf("malformed data: %v", err)
+	}
+
+	return rowID, nil
 }

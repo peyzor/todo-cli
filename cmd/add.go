@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/peyzor/todo-cli/storage"
 	"github.com/spf13/cobra"
+	"io"
+	"os"
 	"strconv"
 	"time"
 )
@@ -30,6 +32,14 @@ var addCmd = &cobra.Command{
 		err = storage.AddNewCSVRecord(f, []string{strconv.Itoa(nextID), todo, time.Now().UTC().String(), storage.IsDoneNo})
 		if err != nil {
 			fmt.Printf("couldn't add new record: %v", err)
+			return
+		}
+
+		f.Seek(0, io.SeekStart)
+
+		err = storage.GetRowsTabular(f, os.Stdout)
+		if err != nil {
+			fmt.Printf("couldn't get rows: %v", err)
 			return
 		}
 	},

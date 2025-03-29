@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/peyzor/todo-cli/storage"
 	"github.com/spf13/cobra"
+	"os"
 	"strconv"
 )
 
@@ -30,6 +31,19 @@ var deleteCmd = &cobra.Command{
 		err = storage.DeleteCSVRecord(f, ID)
 		if err != nil {
 			fmt.Printf("couldn't delete record: %v", err)
+			return
+		}
+
+		f, err = storage.GetOrCreateCSVStorage()
+		if err != nil {
+			fmt.Printf("couldn't get storage: %v", err)
+			return
+		}
+		defer f.Close()
+
+		err = storage.GetRowsTabular(f, os.Stdout)
+		if err != nil {
+			fmt.Printf("couldn't get rows: %v", err)
 			return
 		}
 	},

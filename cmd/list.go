@@ -5,8 +5,6 @@ import (
 	"github.com/peyzor/todo-cli/storage"
 	"github.com/spf13/cobra"
 	"os"
-	"strings"
-	"text/tabwriter"
 )
 
 // listCmd represents the list command
@@ -22,18 +20,11 @@ var listCmd = &cobra.Command{
 		}
 		defer f.Close()
 
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-
-		rows, err := storage.GetRows(f)
+		err = storage.GetRowsTabular(f, os.Stdout)
 		if err != nil {
-			fmt.Fprintf(os.Stdout, "couldn't get rows: %v", err)
+			fmt.Printf("couldn't get rows: %v", err)
+			return
 		}
-
-		for _, row := range rows {
-			fmt.Fprintln(w, strings.Join(row, "\t"))
-		}
-
-		w.Flush()
 	},
 }
 
