@@ -5,22 +5,50 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/peyzor/todo-cli/storage"
+	"os"
+	"strconv"
 
 	"github.com/spf13/cobra"
 )
 
 // completeCmd represents the complete command
 var completeCmd = &cobra.Command{
-	Use:   "complete",
+	Use:   "complete <ID>",
 	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("complete called")
+		f, err := storage.GetOrCreateCSVStorage()
+		if err != nil {
+			fmt.Printf("couldn't get storage: %v", err)
+			return
+		}
+		defer f.Close()
+
+		IDStr := args[0]
+		ID, err := strconv.Atoi(IDStr)
+		if err != nil {
+			fmt.Printf("invalid ID: %v", err)
+			return
+		}
+
+		err = storage.UpdateCSVRecord(f, ID)
+		if err != nil {
+			fmt.Printf("couldn't update record: %v", err)
+			return
+		}
+
+		f, err = storage.GetOrCreateCSVStorage()
+		if err != nil {
+			fmt.Printf("couldn't get storage: %v", err)
+			return
+		}
+		defer f.Close()
+
+		err = storage.GetRowsTabular(f, os.Stdout)
+		if err != nil {
+			fmt.Printf("couldn't get rows: %v", err)
+			return
+		}
 	},
 }
 

@@ -116,6 +116,69 @@ func DeleteCSVRecord(f io.ReadWriter, ID int) error {
 	return nil
 }
 
+func UpdateCSVRecord(f io.ReadWriter, ID int) error {
+	rows, err := GetRows(f)
+	if err != nil {
+		return err
+	}
+
+	if len(rows) == 0 {
+		return errors.New("malformed data: header not found")
+	}
+
+	header := rows[0]
+
+	var newRows [][]string
+	for _, row := range rows[1:] {
+		rowID, err := getRowID(row, header)
+		if err != nil {
+			return err
+		}
+
+		if ID == rowID {
+			updatedRow, err := markRecordCompleted(row, header)
+			if err != nil {
+				return err
+			}
+			newRows = append(newRows, updatedRow)
+			continue
+		}
+
+		newRows = append(newRows, row)
+	}
+
+	tmpFile, err := os.CreateTemp("", "temp_csv")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	writer := csv.NewWriter(tmpFile)
+	err = writer.Write(header)
+	if err != nil {
+		return err
+	}
+	for _, newRow := range newRows {
+		err = writer.Write(newRow)
+		if err != nil {
+			return err
+		}
+	}
+
+	writer.Flush()
+	if err = writer.Error(); err != nil {
+		return err
+	}
+
+	err = os.Rename(tmpFile.Name(), CSVStorageFilename)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func GetRows(f io.Reader) ([][]string, error) {
 	reader := csv.NewReader(f)
 
@@ -227,4 +290,17 @@ func getRowID(row []string, header []string) (int, error) {
 	}
 
 	return rowID, nil
+}
+
+func markRecordCompleted(row, header []string) ([]string, error) {
+	var updatedRecord []string
+	for i, h := range header {
+		if h == "Done" {
+			updatedRecord = append(updatedRecord, IsDoneYes)
+			continue
+		}
+		updatedRecord = append(updatedRecord, row[i])
+	}
+
+	return updatedRecord, nil
 }
