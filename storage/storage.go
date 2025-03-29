@@ -15,9 +15,11 @@ const (
 	IsDoneYes string = "Y"
 )
 
+const CSVStorageFilename = "storage.csv"
+
 func GetOrCreateCSVStorage() (*os.File, error) {
 	var f *os.File
-	filename := "storage.csv"
+	filename := CSVStorageFilename
 	if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
 		f, err = os.Create(filename)
 		if err != nil {
@@ -104,7 +106,7 @@ func DeleteCSVRecord(f io.ReadWriter, ID int) error {
 		return err
 	}
 
-	err = os.Rename(tmpFile.Name(), "storage.csv")
+	err = os.Rename(tmpFile.Name(), CSVStorageFilename)
 	if err != nil {
 		return err
 	}
